@@ -11,7 +11,11 @@ import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.squareup.okhttp.Callback;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
@@ -30,17 +34,27 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
+
+    static TextView tv;
+    static Context context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        tv = findViewById(R.id.text_view);
+        context = this;
+
+        DataDownloader dd = new DataDownloader();
+        dd.execute("https://raw.githubusercontent.com/operable/cog/master/priv/css-color-names.json");
     }
 
 
-    static class DataDownloader extends AsyncTask<String, Void, String> {
+    class DataDownloader extends AsyncTask<String, Void, String> {
 
         @Override
         protected String doInBackground(String... urls) {
@@ -50,6 +64,26 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(String data) {
             // UI code that uses data here.
+
+            if(data == null) {
+                Toast.makeText(context, "Data is null", Toast.LENGTH_LONG).show();
+                data = "{'blue': '#0000ff'}";
+                // return;
+            }
+            tv.setText(data);
+
+            Type collectionType = new TypeToken<HashMap<String, String>>() {
+            }.getType();
+            Gson gs = new Gson();
+            HashMap<String, String> res = gs.fromJson(new StringReader(data), collectionType);
+
+            // save res to db
+            DbHelper db = new DbHelper(context);
+            for(Map.Entry<String, String> entry: res.entrySet()) {
+                db.insertColor(entry.getKey(), entry.getValue());
+            }
+
+            tv.setText(tv.getText() + " " + String.valueOf(db.numberOfRows()));
         }
 
 
